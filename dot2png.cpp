@@ -337,7 +337,8 @@ void dot_to_png(
     double relativeStrength,
     int quadTreeMaxLevel,
     double barnesHutTheta,
-    double convergenceThreshold) {
+    double convergenceThreshold, 
+    bool refresh) {
     std::vector<string> name_li;
     std::unordered_map<string, string> line_li;
     vector<int> shape_li;
@@ -399,23 +400,83 @@ void dot_to_png(
         start = std::chrono::system_clock::now();
         positions = kamada_kawai(g, width, height, k, energy_threshold);
         end = std::chrono::system_clock::now();
-
-        write_to_png(g, positions, radiuses, width, height, png_filename, name_li, line_li, shape_li);
     }
     // yifanhu
     else if (method == Method::yfh) {
         start = std::chrono::system_clock::now();
         positions = yifanhu(g, width, height, iters_count, stepRatio, relativeStrength, quadTreeMaxLevel, barnesHutTheta, convergenceThreshold);
         end = std::chrono::system_clock::now();
-        write_to_png(g, positions, radiuses, width, height, png_filename, name_li, line_li, shape_li);
     }
     // sugiyama
     else {
         start = std::chrono::system_clock::now();
         positions = sugiyama(g, width, height);
         end = std::chrono::system_clock::now();
-        write_to_png(g, positions, radiuses, width, height, png_filename, name_li, line_li, shape_li);
     }
+    // 自适应计算长宽
+    if (!refresh) {
+        double min_x = positions[0].x;
+        double max_x = positions[0].x;
+        double min_y = positions[0].y;
+        double max_y = positions[0].y;
+        double max_label_size = 0.0;
+        double rate = 0.2;
+        // 创建surface表面
+        cairo_surface_t* surface = cairo_image_surface_create(_cairo_format::CAIRO_FORMAT_ARGB32, width, height);
+        // 上下文记录结构
+        cairo_t* cr = cairo_create(surface);
+        for (int v_id = 0; v_id < positions.size(); ++v_id) {
+            if (positions[v_id].x < min_x) {
+                min_x = positions[v_id].x;
+            }
+            if (positions[v_id].y < min_y) {
+                min_y = positions[v_id].y;
+            }
+            if (positions[v_id].x > max_x) {
+                max_x = positions[v_id].x;
+            }
+            if (positions[v_id].y > max_y) {
+                max_y = positions[v_id].y;
+            }
+            cairo_text_extents_t extents;
+            cairo_text_extents(cr, name_li[v_id].c_str(), &extents);
+            if (extents.width > max_label_size) {
+                max_label_size = extents.width;
+            }
+            if (extents.height > max_label_size) {
+                max_label_size = extents.height;
+            }
+        }
+
+        for (int v_id = 0; v_id < positions.size(); ++v_id) {
+            for (int o_id = v_id + 1; o_id < positions.size(); ++o_id) {
+                double dis = sqrt(pow(positions[v_id].x - positions[o_id].x, 2.0) + pow(positions[v_id].y - positions[o_id].y, 2.0));
+                if (max_label_size * 2.0 / dis > rate) {
+                    rate = max_label_size * 2.0 / dis;
+                }
+            }
+            for (int j = 0; j < g[v_id].size(); ++j) {
+                int o_id = g[v_id][j];
+                if (v_id == o_id) {
+                    continue;
+                }
+                double dis = sqrt(pow(positions[v_id].x - positions[o_id].x, 2.0) + pow(positions[v_id].y - positions[o_id].y, 2.0));
+                if (max_label_size * 3.0 / dis > rate) {
+                    rate = max_label_size * 3.0 / dis;
+                }
+            }
+        }
+        width = (max_x - min_x) / 0.8 * rate;
+        height = (max_y - min_y) / 0.8 * rate;
+        for (int v_id = 0; v_id < positions.size(); ++v_id) {
+            positions[v_id].x *= rate;
+            positions[v_id].y *= rate;
+        }
+        //printf("%f %f %f %f %f\n", max_x, min_x, max_y, min_y, rate);
+        //printf("%d %d\n", width, height);
+    }
+
+    write_to_png(g, positions, radiuses, width, height, png_filename, name_li, line_li, shape_li);
 
     unsigned int ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
     cout << "Layout computed in " << ms << "ms\n";
@@ -424,9 +485,9 @@ void dot_to_png(
 void usage(string exec_name) {
     cerr << "Usage: " << exec_name << " [options] <in.dot> <out.png>\n";
     cerr << "Options:\n";
-    cerr << "  -m <method>\t\tLayout method to use between Fruchterman Reingold and Kamada Kawai [fr|kk|yfh|sgym, default: sgym]\n";
+    cerr << "  -m <method>\t\tLayout method to use between Fruchterman Reingold, Kamada Kawai, Yifan Hu and Sugiyama [fr|kk|yfh|sgym, default: sgym]\n";
     cerr << "  -w <width>\t\tCanvas width in pixels [default: 1024]\n";
-    cerr << "  -h <height>\t\tCanvas height in pixels [default: 760]\n";
+    cerr << "  -h <height>\t\tCanvas height in pixels [default: 1024]\n";
     cerr << "  -k <strength>\t\tStrength factor [default: 10 for fr, 300 for kk]\n";
     cerr << "  -i <nb_iterations>\tNumber of iterations for fr [default: 100]\n";
     cerr << "  -e <epsilon>\t\tEnergy threshold for kk [default: 1e-2]\n";
@@ -436,7 +497,7 @@ void usage(string exec_name) {
 int main(int argc, char* argv[]) {
     Method method = sgym;
     int width = 1024;
-    int height = 768;
+    int height = 1024;
     double k = -1.0;
     double energy_threshold = 1e-2;
     int iters_count = 300;
@@ -447,6 +508,8 @@ int main(int argc, char* argv[]) {
     int quadTreeMaxLevel = 20;
     double barnesHutTheta = 1.2;
     double convergenceThreshold = 1.0E-4;
+
+    bool refresh_w_or_h = false;
 
     // 指令解析
     char opt;
@@ -478,6 +541,7 @@ int main(int argc, char* argv[]) {
                 usage(argv[0]);
                 exit(EXIT_FAILURE);
             }
+            refresh_w_or_h = true;
             break;
         case 'h':
             height = atoi(my_optarg);
@@ -486,6 +550,7 @@ int main(int argc, char* argv[]) {
                 usage(argv[0]);
                 exit(EXIT_FAILURE);
             }
+            refresh_w_or_h = true;
             break;
         case 'k':
             k = atof(my_optarg);
@@ -559,7 +624,13 @@ int main(int argc, char* argv[]) {
     {
         cout << "Sugiyama";
     }
-    cout << std::endl << "Width: " << width << "  Height: " << height << std::endl;
+    if (refresh_w_or_h) {
+        cout << std::endl << "Width: " << width << "  Height: " << height << std::endl;
+    }
+    else {
+        cout << std::endl << "Adaption width and height" << std::endl;
+    }
+    
 
     if (argc - my_optind < 2) {
         cerr << "Missing positional arguments\n";
@@ -573,5 +644,5 @@ int main(int argc, char* argv[]) {
     char* png_filename = argv[my_optind + 1];
     dot_to_png(dot_filename, png_filename, method, width, height, k, energy_threshold,
         iters_count, animated, stepRatio, relativeStrength, quadTreeMaxLevel,
-        barnesHutTheta, convergenceThreshold);
+        barnesHutTheta, convergenceThreshold, refresh_w_or_h);
 }
