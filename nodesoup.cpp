@@ -36,6 +36,9 @@ namespace nodesoup {
         }
 
         center_and_scale(g, width, height, positions);
+        //for (int v_id = 0; v_id < positions.size(); v_id++) {
+        //    printf("%f %f\n", positions[v_id].x, positions[v_id].y);
+        //}
         return positions;
     }
 

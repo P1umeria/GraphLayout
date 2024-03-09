@@ -387,9 +387,6 @@ void dot_to_png(
         if (animated) {
             delete[] frame_filename;
         }
-        else {
-            write_to_png(g, positions, radiuses, width, height, png_filename, name_li, line_li, shape_li);
-        }
     }
     // Kamada-Kawai
     else if (method == Method::kk) {
@@ -412,6 +409,9 @@ void dot_to_png(
         start = std::chrono::system_clock::now();
         positions = sugiyama(g, width, height);
         end = std::chrono::system_clock::now();
+    }
+    for (int v_id = 0; v_id < positions.size(); v_id++) {
+        printf("%f %f\n", positions[v_id].x, positions[v_id].y);
     }
     // 自适应计算长宽
     if (!refresh) {
@@ -453,6 +453,7 @@ void dot_to_png(
                 double dis = sqrt(pow(positions[v_id].x - positions[o_id].x, 2.0) + pow(positions[v_id].y - positions[o_id].y, 2.0));
                 if (max_label_size * 2.0 / dis > rate) {
                     rate = max_label_size * 2.0 / dis;
+                    printf("Rate refresh, node dis, %d %d, %f\n", v_id, o_id, dis);
                 }
             }
             for (int j = 0; j < g[v_id].size(); ++j) {
@@ -463,6 +464,7 @@ void dot_to_png(
                 double dis = sqrt(pow(positions[v_id].x - positions[o_id].x, 2.0) + pow(positions[v_id].y - positions[o_id].y, 2.0));
                 if (max_label_size * 3.0 / dis > rate) {
                     rate = max_label_size * 3.0 / dis;
+                    printf("Rate refresh, edge dis, %d %d, %f\n", v_id, o_id, dis);
                 }
             }
         }
@@ -472,8 +474,8 @@ void dot_to_png(
             positions[v_id].x *= rate;
             positions[v_id].y *= rate;
         }
-        //printf("%f %f %f %f %f\n", max_x, min_x, max_y, min_y, rate);
-        //printf("%d %d\n", width, height);
+        printf("%f %f %f %f %f %f\n", max_x, min_x, max_y, min_y, rate, max_label_size);
+        printf("%d %d\n", width, height);
     }
 
     write_to_png(g, positions, radiuses, width, height, png_filename, name_li, line_li, shape_li);
