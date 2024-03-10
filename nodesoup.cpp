@@ -95,6 +95,10 @@ namespace nodesoup {
         unsigned int height) {
         graph_builder builder;
         for (int i = 0; i < g.size(); ++i) {
+            builder.add_vertex(i);
+        }
+
+        for (int i = 0; i < g.size(); ++i) {
             for (int j = 0; j < g[i].size(); ++j) {
                 builder.add_edge(i, g[i][j]);
             }

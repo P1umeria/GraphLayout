@@ -122,7 +122,6 @@ struct graph_builder {
      */
     graph build() { return g; }
 
-private:
     void add_vertex(vertex_t u) {
         while (u >= g.size()) {
             g.add_node();
