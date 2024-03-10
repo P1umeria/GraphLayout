@@ -239,7 +239,7 @@ namespace nodesoup {
         delete children;
     }
 
-    YifanHu::YifanHu(const adj_list_t& g) : g_(g) {
+    YifanHu::YifanHu(const adj_list_t& g, double min_dis) : g_(g) {
         // 初始化所有参数，按照Gephi源码设置,其中比较可能需要改动的是relativeStrength，与optimalDistance相关
         progress = 0;
         energy = pow(2, 31) - 1;  // 初始能量默认为无穷大
@@ -254,6 +254,10 @@ namespace nodesoup {
         initialStep = optimalDistance / 5.0;
         step = initialStep;
         converged = false;
+        if (min_dis < 0.0) {
+            min_dis = 1.0 / (g.size() * 0.8);
+        }
+        min_distance_rate = min_dis;
     }
 
     double YifanHu::getAverageEdgeLength(std::vector<Point2D>& positions) {
@@ -331,6 +335,7 @@ namespace nodesoup {
             // std::cout << "ori: " << positions[i].x << " " << positions[i].y << std::endl;
         }
         double size = max_x - min_x > max_y - min_y ? max_x - min_x : max_y - min_y;
+        double temp_dis = size * min_distance_rate;
         quadtree* BH_tree = new quadtree({ min_x - 1e-5, min_y - 1e-5 }, size + 2e-5, quadTreeMaxLevel);
         for (int i = 0; i < positions.size(); ++i) {
             // printf("%f %f %f %f %f\n", min_x, min_y, size, positions[i].x, positions[i].y);
@@ -355,6 +360,10 @@ namespace nodesoup {
                     continue;
                 }
                 double distance = (positions[i] - positions[g_[i][j]]).norm();
+                // 如果过于靠近，忽略
+                if (distance < temp_dis) {
+                    continue;
+                }
                 spring_forces_move[i] += s1 * (positions[i] - positions[g_[i][j]]) * distance / optimalDistance;
                 spring_forces_move[g_[i][j]] -= s2 * (positions[i] - positions[g_[i][j]]) * distance / optimalDistance;
                 // std::cout << optimalDistance << " " << distance << std::endl;

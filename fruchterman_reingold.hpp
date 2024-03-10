@@ -6,7 +6,7 @@
 namespace nodesoup {
     class FruchtermanReingold {
     public:
-        FruchtermanReingold(const adj_list_t& g, double k = 15.0);
+        FruchtermanReingold(const adj_list_t& g, double k = 15.0, double min_distance_rate = -1.0);
         void operator()(std::vector<Point2D>& positions);
 
     private:
@@ -14,6 +14,7 @@ namespace nodesoup {
         const double k_;
         const double k_squared_;
         double temp_;
+        double min_distance_rate;
         std::vector<std::pair<vertex_id_t, vertex_id_t>> edges_;
         std::vector<Vector2D> mvmts_;
     };

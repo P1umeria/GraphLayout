@@ -468,8 +468,8 @@ void dot_to_png(
                 }
             }
         }
-        width = (max_x - min_x) / 0.8 * rate;
-        height = (max_y - min_y) / 0.8 * rate;
+        width = (max_x - min_x) * rate + 2 * max_label_size;
+        height = (max_y - min_y) * rate + 2 * max_label_size;
         for (int v_id = 0; v_id < positions.size(); ++v_id) {
             positions[v_id].x *= rate;
             positions[v_id].y *= rate;

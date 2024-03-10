@@ -52,8 +52,9 @@ namespace nodesoup {
         int progress;                       // 正反馈系数，用于控制步长大小的更新 default 0 and progress < 5
         double energy0;                     // 初始能量
         double energy;                      // 当前能量
+        double min_distance_rate;
     public:
-        YifanHu(const adj_list_t& g);
+        YifanHu(const adj_list_t& g, double min_distance_rate = -1.0);
         double getAverageEdgeLength(std::vector<Point2D>& positions);
         void resetPropertiesValues(double stepRatio = 0.95, double relativeStrength = 0.2, int quadTreeMaxLevel = 20, double barnesHutTheta = 1.2, double convergenceThreshold = 1e-4);
         void updateStep();
