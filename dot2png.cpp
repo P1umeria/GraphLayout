@@ -470,9 +470,19 @@ void dot_to_png(
         }
         width = (max_x - min_x) * rate + 2 * max_label_size;
         height = (max_y - min_y) * rate + 2 * max_label_size;
+        double rate_x = 1.0;
+        double rate_y = 1.0;
+        if (width < 500) {
+            rate_x = 500.0 / width;
+            width = 500;
+        }
+        if (height < 500) {
+            rate_y = 500.0 / height;
+            height = 500;
+        }
         for (int v_id = 0; v_id < positions.size(); ++v_id) {
-            positions[v_id].x *= rate;
-            positions[v_id].y *= rate;
+            positions[v_id].x *= rate * rate_x;
+            positions[v_id].y *= rate * rate_y;
         }
         printf("%f %f %f %f %f %f\n", max_x, min_x, max_y, min_y, rate, max_label_size);
         printf("%d %d\n", width, height);
