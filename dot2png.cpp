@@ -26,7 +26,7 @@ using std::cerr;
 // 绘图形状
 enum Shape { circle, square };
 // 算法选择
-enum Method { fr, kk, yfh, sgym };
+enum Method { fr, kk, yfh, sgym, adaption };
 
 int my_optind = -1;
 const char* my_optarg = "";
@@ -321,6 +321,56 @@ void write_to_png(adj_list_t& g, vector<Point2D>& positions, vector<double>& rad
     cairo_show_page(cr);
 }
 
+// 深度优先搜索判断是否存在环
+bool judge_cycle(adj_list_t g, vector<int>& vec, int cur, int last) {
+    if (vec[cur] == 0) {
+        vec[cur] = 1;
+    }
+    else {
+        return true;
+    }
+    for (int i = 0; i < g[cur].size(); ++i) {
+        if (g[cur][i] == cur || g[cur][i] == last) {
+            continue;
+        }
+        bool b = judge_cycle(g, vec, g[cur][i], cur);
+        if (b) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// 方法选择
+Method method_choose(adj_list_t g) {
+    if (g.size() > 2000) {
+        return Method::yfh;
+    }
+    bool has_circle = false;
+    vector<int> is_found(g.size(), 0);
+    int cur = -1;
+    int last = -1;
+    for (int i = 0; i < g.size(); ++i) {
+        if (is_found[i] == 0) {
+            has_circle = judge_cycle(g, is_found, i, -1);
+        }
+        if (has_circle) {
+            break;
+        }
+    }
+    if (!has_circle) {
+        return Method::sgym;
+    }
+    int edge_num = 0;
+    for (int i = 0; i < g.size(); ++i) {
+        edge_num += g[i].size();
+    }
+    if (edge_num >= 0.5 * g.size() * g.size()) {
+        return Method::kk;
+    }
+    return Method::fr;
+}
+
 
 // 主要函数
 void dot_to_png(
@@ -347,6 +397,24 @@ void dot_to_png(
     vector<Point2D> positions;
     // 获取点的半径
     vector<double> radiuses = size_radiuses(g);
+    // 如果是adaption，需要决定算法
+    if (method == adaption) {
+        method = method_choose(g);
+        printf("Using: ");
+        if (method == kk) {
+            cout << "Kamada Kawai";
+        }
+        else if (method == fr) {
+            cout << "Fruchterman reingold";
+        }
+        else if (method == yfh) {
+            cout << "Yifan Hu";
+        }
+        else if (method == sgym) {
+            cout << "Sugiyama";
+        }
+        cout << std::endl;
+    }
 
     std::chrono::time_point<std::chrono::system_clock> start, end;
     cout << "Laying out graph...\n";
@@ -411,7 +479,7 @@ void dot_to_png(
         end = std::chrono::system_clock::now();
     }
     for (int v_id = 0; v_id < positions.size(); v_id++) {
-        printf("%f %f\n", positions[v_id].x, positions[v_id].y);
+        //printf("%f %f\n", positions[v_id].x, positions[v_id].y);
     }
     // 自适应计算长宽
     if (!refresh) {
@@ -453,7 +521,7 @@ void dot_to_png(
                 double dis = sqrt(pow(positions[v_id].x - positions[o_id].x, 2.0) + pow(positions[v_id].y - positions[o_id].y, 2.0));
                 if (max_label_size * 2.0 / dis > rate) {
                     rate = max_label_size * 2.0 / dis;
-                    printf("Rate refresh, node dis, %d %d, %f\n", v_id, o_id, dis);
+                    //printf("Rate refresh, node dis, %d %d, %f\n", v_id, o_id, dis);
                 }
             }
             for (int j = 0; j < g[v_id].size(); ++j) {
@@ -464,7 +532,7 @@ void dot_to_png(
                 double dis = sqrt(pow(positions[v_id].x - positions[o_id].x, 2.0) + pow(positions[v_id].y - positions[o_id].y, 2.0));
                 if (max_label_size * 3.0 / dis > rate) {
                     rate = max_label_size * 3.0 / dis;
-                    printf("Rate refresh, edge dis, %d %d, %f\n", v_id, o_id, dis);
+                    //printf("Rate refresh, edge dis, %d %d, %f\n", v_id, o_id, dis);
                 }
             }
         }
@@ -484,8 +552,8 @@ void dot_to_png(
             positions[v_id].x *= rate * rate_x;
             positions[v_id].y *= rate * rate_y;
         }
-        printf("%f %f %f %f %f %f\n", max_x, min_x, max_y, min_y, rate, max_label_size);
-        printf("%d %d\n", width, height);
+        //printf("%f %f %f %f %f %f\n", max_x, min_x, max_y, min_y, rate, max_label_size);
+        //printf("%d %d\n", width, height);
     }
 
     write_to_png(g, positions, radiuses, width, height, png_filename, name_li, line_li, shape_li);
@@ -497,9 +565,9 @@ void dot_to_png(
 void usage(string exec_name) {
     cerr << "Usage: " << exec_name << " [options] <in.dot> <out.png>\n";
     cerr << "Options:\n";
-    cerr << "  -m <method>\t\tLayout method to use between Fruchterman Reingold, Kamada Kawai, Yifan Hu and Sugiyama [fr|kk|yfh|sgym, default: sgym]\n";
-    cerr << "  -w <width>\t\tCanvas width in pixels [default: 1024]\n";
-    cerr << "  -h <height>\t\tCanvas height in pixels [default: 1024]\n";
+    cerr << "  -m <method>\t\tLayout method to use between Fruchterman Reingold, Kamada Kawai, Yifan Hu and Sugiyama [fr|kk|yfh|sgym, default: adaption]\n";
+    cerr << "  -w <width>\t\tCanvas width in pixels [default: adaption]\n";
+    cerr << "  -h <height>\t\tCanvas height in pixels [default: adaption]\n";
     cerr << "  -k <strength>\t\tStrength factor [default: 10 for fr, 300 for kk]\n";
     cerr << "  -i <nb_iterations>\tNumber of iterations for fr [default: 100]\n";
     cerr << "  -e <epsilon>\t\tEnergy threshold for kk [default: 1e-2]\n";
@@ -507,7 +575,7 @@ void usage(string exec_name) {
 }
 
 int main(int argc, char* argv[]) {
-    Method method = sgym;
+    Method method = adaption;
     int width = 1024;
     int height = 1024;
     double k = -1.0;
@@ -632,9 +700,11 @@ int main(int argc, char* argv[]) {
     else if (method == yfh) {
         cout << "Yifan Hu";
     }
-    else
-    {
+    else if (method == sgym) {
         cout << "Sugiyama";
+    }
+    else {
+        cout << "Adaption";
     }
     if (refresh_w_or_h) {
         cout << std::endl << "Width: " << width << "  Height: " << height << std::endl;
