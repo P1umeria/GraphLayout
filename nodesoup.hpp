@@ -36,15 +36,13 @@ namespace nodesoup {
     };
 
 
-    // 两点的距离
+    // 二维向量
     struct Vector2D {
         double dx;
         double dy;
-
         double norm() const {
             return sqrt(dx * dx + dy * dy);
         }
-
         explicit operator Point2D() const;
         // 更新向量的值
         Vector2D& operator+=(const Vector2D& other);

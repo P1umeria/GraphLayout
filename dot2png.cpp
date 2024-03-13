@@ -544,16 +544,24 @@ void dot_to_png(
             rate_x = 500.0 / width;
             width = 500;
         }
+        if (width > 30000) {
+            rate_x = 30000.0 / width;
+            width = 30000.0;
+        }
         if (height < 500) {
             rate_y = 500.0 / height;
             height = 500;
+        }
+        if (height > 30000) {
+            rate_y = 30000.0 / height;
+            height = 30000.0;
         }
         for (int v_id = 0; v_id < positions.size(); ++v_id) {
             positions[v_id].x *= rate * rate_x;
             positions[v_id].y *= rate * rate_y;
         }
         //printf("%f %f %f %f %f %f\n", max_x, min_x, max_y, min_y, rate, max_label_size);
-        //printf("%d %d\n", width, height);
+        printf("Width: %d, Height: %d\n", width, height);
     }
 
     write_to_png(g, positions, radiuses, width, height, png_filename, name_li, line_li, shape_li);
