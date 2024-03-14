@@ -20,12 +20,11 @@ namespace nodesoup {
         size_t biggest_distance = 0;
         for (vertex_id_t v_id = 0; v_id < g_.size(); v_id++) {
             for (vertex_id_t other_id = 0; other_id < g_.size(); other_id++) {
-                if (distances[v_id][other_id] != g_.size() + 1 && distances[v_id][other_id] > biggest_distance) {
+                if (distances[v_id][other_id] > biggest_distance) {
                     biggest_distance = distances[v_id][other_id];
                 }
             }
         }
-        biggest_distance = biggest_distance + 1;
 
         // 理想的边长(不重要)
         double length = 1.0;
@@ -45,9 +44,6 @@ namespace nodesoup {
                 }
                 else {
                     size_t distance = distances[v_id][other_id];
-                    if (distance > biggest_distance) {
-                        distance = biggest_distance;
-                    }
                     spring.length = distance * length;
                     spring.strength = k / (distance * distance);
                 }
@@ -61,6 +57,7 @@ namespace nodesoup {
     vector<vector<vertex_id_t>> KamadaKawai::floyd_warshall_(const adj_list_t& g) {
         // 创建邻接矩阵 (infinity = 无边, 1 = 有边)
         unsigned int infinity = g.size() + 1;
+        //unsigned int infinity = std::numeric_limits<unsigned int>::max() / 2;
         vector<vector<vertex_id_t>> distances(g.size(), vector<vertex_id_t>(g.size(), infinity));
 
         for (vertex_id_t v_id = 0; v_id < g.size(); v_id++) {
@@ -93,6 +90,8 @@ namespace nodesoup {
         vertex_id_t v_id;
         unsigned int steady_energy_count = 0;
         double max_vertex_energy = find_max_vertex_energy_(positions, v_id);
+        int last_id = -1;
+        int last_count = 0;
 
         while (max_vertex_energy > energy_threshold_ && steady_energy_count < MAX_STEADY_ENERGY_ITERS_COUNT) {
             // 逐步移动顶点，直到其能量低于阈值(牛顿法)
@@ -100,17 +99,34 @@ namespace nodesoup {
             do {
                 positions[v_id] = compute_next_vertex_position_(v_id, positions);
                 vertex_count++;
+                //printf("1");
             } while (compute_vertex_energy_(v_id, positions) > energy_threshold_ && vertex_count < MAX_VERTEX_ITERS_COUNT);
-
+            //printf("2");
             double max_vertex_energy_prev = max_vertex_energy;
             max_vertex_energy = find_max_vertex_energy_(positions, v_id);
+            if (last_id == v_id) {
+                ++last_count;
+                if (last_count > 100) {
+                    break;
+                }
+            }
+            else
+            {
+                last_id = v_id;
+                last_count = 1;
+            }
+            
+            //printf("%d ", v_id);
             if (std::abs(max_vertex_energy - max_vertex_energy_prev) < 1e-20) {
                 steady_energy_count++;
+                //printf("3");
             }
             else {
                 steady_energy_count = 0;
+                //printf("4");
             }
         }
+        //printf("5");
     }
 
     // 找到并返回最大的能量值的点的序号，返回能量值

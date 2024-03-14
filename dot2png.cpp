@@ -39,8 +39,8 @@ char my_getopt(int nargc, char* const* nargv, const char* options) {
         if (strlen(nargv[my_optind]) == 2 && nargv[my_optind][0] == '-') {
             if (my_optind != nargc - 1) {
                 my_optarg = nargv[my_optind + 1];
-                return nargv[my_optind][1];
             }
+            return nargv[my_optind][1];
         }
     }
     return -1;
@@ -373,7 +373,7 @@ Method method_choose(adj_list_t g) {
 
 
 // 主要函数
-void dot_to_png(
+int dot_to_png(
     string dot_filename,
     string png_filename,
     Method method,
@@ -388,7 +388,8 @@ void dot_to_png(
     int quadTreeMaxLevel,
     double barnesHutTheta,
     double convergenceThreshold, 
-    bool refresh) {
+    bool refresh,
+    bool to_png) {
     std::vector<string> name_li;
     std::unordered_map<string, string> line_li;
     vector<int> shape_li;
@@ -478,9 +479,18 @@ void dot_to_png(
         positions = sugiyama(g, width, height);
         end = std::chrono::system_clock::now();
     }
-    for (int v_id = 0; v_id < positions.size(); v_id++) {
-        //printf("%f %f\n", positions[v_id].x, positions[v_id].y);
+
+    unsigned int ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+
+    if (to_png == false) {
+        return ms;
     }
+
+    cout << "Layout computed in " << ms << "ms\n";
+
+    //for (int v_id = 0; v_id < positions.size(); v_id++) {
+    //    printf("%f %f\n", positions[v_id].x, positions[v_id].y);
+    //}
     // 自适应计算长宽
     if (!refresh) {
         double min_x = positions[0].x;
@@ -544,17 +554,17 @@ void dot_to_png(
             rate_x = 500.0 / width;
             width = 500;
         }
-        if (width > 30000) {
-            rate_x = 30000.0 / width;
-            width = 30000.0;
+        if (width > 20000) {
+            rate_x = 20000.0 / width;
+            width = 20000.0;
         }
         if (height < 500) {
             rate_y = 500.0 / height;
             height = 500;
         }
-        if (height > 30000) {
-            rate_y = 30000.0 / height;
-            height = 30000.0;
+        if (height > 20000) {
+            rate_y = 20000.0 / height;
+            height = 20000.0;
         }
         for (int v_id = 0; v_id < positions.size(); ++v_id) {
             positions[v_id].x *= rate * rate_x;
@@ -565,9 +575,7 @@ void dot_to_png(
     }
 
     write_to_png(g, positions, radiuses, width, height, png_filename, name_li, line_li, shape_li);
-
-    unsigned int ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-    cout << "Layout computed in " << ms << "ms\n";
+    return ms;
 }
 
 void usage(string exec_name) {
@@ -598,6 +606,8 @@ int main(int argc, char* argv[]) {
     double convergenceThreshold = 1.0E-4;
 
     bool refresh_w_or_h = false;
+
+    bool is_test = false;
 
     // 指令解析
     char opt;
@@ -691,11 +701,122 @@ int main(int argc, char* argv[]) {
             convergenceThreshold = atof(my_optarg);
             cout << "Convergence threshold = " << convergenceThreshold << std::endl;
             break;
+        case 't':
+            is_test = true;
+            cout << "Run test now." << std::endl;
+            break;
         default:
             cout << "ERROR\n";
             usage(argv[0]);
             exit(EXIT_FAILURE);
         }
+    }
+
+    if (is_test) {
+        char* input_filename = argv[my_optind];
+        char* output_filename = argv[my_optind + 1];
+        vector<string> dot_li;
+        std::ifstream ifs(input_filename);
+        // 打不开文件
+        if (!ifs.good()) {
+            cerr << "Could not open file \"" << input_filename << "\"\n";
+            exit(EXIT_FAILURE);
+        }
+        string line;
+
+        while (std::getline(ifs, line)) {
+            string s2 = line;
+            dot_li.push_back(s2);
+        }
+        printf("Get %d files.\n", dot_li.size());
+        
+        vector<int> fr_res(dot_li.size(), 0);
+        vector<int> kk_res(dot_li.size(), 0);
+        vector<int> yfh_res(dot_li.size(), 0);
+        vector<int> sgym_res(dot_li.size(), 0);
+
+        bool fr_cal = true;
+        bool kk_cal = true;
+        bool yfh_cal = true;
+        bool sgym_cal = true;
+
+        for (int i = 0; i < dot_li.size(); ++i) {
+            int res = 0;
+            if (fr_cal) {
+                res = dot_to_png(dot_li[i], "./test.txt", Method::fr, width, height, k, energy_threshold,
+                    iters_count, animated, stepRatio, relativeStrength, quadTreeMaxLevel,
+                    barnesHutTheta, convergenceThreshold, refresh_w_or_h, false);
+                fr_res[i] = res;
+                if (res > 60000) {
+                    fr_cal = false;
+                }
+            }
+            else {
+                fr_res[i] = -1;
+            }
+            
+            if (kk_cal) {
+                res = dot_to_png(dot_li[i], "./test.txt", Method::kk, width, height, k, energy_threshold,
+                    iters_count, animated, stepRatio, relativeStrength, quadTreeMaxLevel,
+                    barnesHutTheta, convergenceThreshold, refresh_w_or_h, false);
+                kk_res[i] = res;
+                if (res > 60000) {
+                    kk_cal = false;
+                }
+            }
+            else {
+                kk_res[i] = -1;
+            }
+            
+
+            if (yfh_cal) {
+                res = dot_to_png(dot_li[i], "./test.txt", Method::yfh, width, height, k, energy_threshold,
+                    iters_count, animated, stepRatio, relativeStrength, quadTreeMaxLevel,
+                    barnesHutTheta, convergenceThreshold, refresh_w_or_h, false);
+                yfh_res[i] = res;
+                if (res > 60000) {
+                    yfh_cal = false;
+                }
+            }
+            else {
+                yfh_res[i] = -1;
+            }
+
+            if (sgym_cal) {
+                res = dot_to_png(dot_li[i], "./test.txt", Method::sgym, width, height, k, energy_threshold,
+                    iters_count, animated, stepRatio, relativeStrength, quadTreeMaxLevel,
+                    barnesHutTheta, convergenceThreshold, refresh_w_or_h, false);
+                sgym_res[i] = res;
+                if (res > 60000) {
+                    sgym_cal = false;
+                }
+            }
+            else {
+                sgym_res[i] = -1;
+            }
+
+            if (i % 100 == 99) {
+                printf("Test %d files.", i + 1);
+            }
+        }
+
+        std::ofstream outFile(output_filename, std::ios::out);
+        // 写入标题行
+        outFile << "test" << ','
+            << "fr" << ','
+            << "kk" << ','
+            << "yfh" << ','
+            << "sgym" << std::endl;
+
+        for (int i = 0; i < dot_li.size(); ++i) {
+            outFile << dot_li[i] << ','
+                << fr_res[i] << ','
+                << kk_res[i] << ','
+                << yfh_res[i] << ','
+                << sgym_res[i] << std::endl;
+        }
+        outFile.close();
+        return 0;
     }
 
     cout << "Method: ";
@@ -734,5 +855,7 @@ int main(int argc, char* argv[]) {
     char* png_filename = argv[my_optind + 1];
     dot_to_png(dot_filename, png_filename, method, width, height, k, energy_threshold,
         iters_count, animated, stepRatio, relativeStrength, quadTreeMaxLevel,
-        barnesHutTheta, convergenceThreshold, refresh_w_or_h);
+        barnesHutTheta, convergenceThreshold, refresh_w_or_h, true);
+
+    return 0;
 }
