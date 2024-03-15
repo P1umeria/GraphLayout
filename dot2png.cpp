@@ -343,9 +343,13 @@ bool judge_cycle(adj_list_t g, vector<int>& vec, int cur, int last) {
 
 // 方法选择
 Method method_choose(adj_list_t g) {
-    if (g.size() > 2000) {
+    if (g.size() > 800) {
         return Method::yfh;
     }
+    else if (g.size() > 400) {
+        return Method::fr;
+    }
+    // 判断是否是树状结构
     bool has_circle = false;
     vector<int> is_found(g.size(), 0);
     int cur = -1;
@@ -361,12 +365,16 @@ Method method_choose(adj_list_t g) {
     if (!has_circle) {
         return Method::sgym;
     }
-    int edge_num = 0;
-    for (int i = 0; i < g.size(); ++i) {
-        edge_num += g[i].size();
-    }
-    if (edge_num >= 0.5 * g.size() * g.size()) {
-        return Method::kk;
+
+    if (g.size() < 100) {
+        // 计算边的总数目
+        int edge_num = 0;
+        for (int i = 0; i < g.size(); ++i) {
+            edge_num += g[i].size();
+        }
+        if (edge_num >= 0.4 * g.size() * g.size()) {
+            return Method::kk;
+        }
     }
     return Method::fr;
 }
